@@ -1,0 +1,1 @@
+{"class":"pipeline_utils.TweetTokenizer","timestamp":1580424287139,"sparkVersion":"3.0.0-preview2","uid":"TweetTokenizer_9def3962ebca","paramMap":{"inputCol":"text","outputCol":"words"},"defaultParamMap":{"outputCol":"TweetTokenizer_9def3962ebca__output"}}
