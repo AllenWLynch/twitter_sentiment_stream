@@ -12,6 +12,8 @@ Twitter is a gold-mine for text data encoded with the thoughts of the world at a
 #### Dashboard
 
 Since the real-time exploration of sentiment is such a powerful tool, I wanted users of my sentiment analysis pipeline to be able to track and extract insights from its classifications in real-time as well. I designed dashboard below with the following features:
+<br><br>
+<img src="readme_materials/dashboard.png" heigh=500><br>
 * Filter the stream to a particular city
 * Explore the geographical distribution of geo-tags in tweets. Filtering by geo-tag allows one to see the sentiment of people talking about some location.
 * Monitor the volume of the stream to gauge twitter activity
@@ -20,8 +22,6 @@ Since the real-time exploration of sentiment is such a powerful tool, I wanted u
 * View cummulative sentiment, or observe how sentiment evolved over time
 * View sentiment by subject of the tweet
 * See classification results first-hand
-<br><br>
-<img src="readme_materials/dashboard.png" heigh=500><br>
 
 This dashboard is hosted in the web browser as a ```Dashapp```. All the plots are dynamic ```Plotly``` plots that allow for drill-down and hover-stats. The dashboard will be connected to the output of the Spark stream by SQL table. Results from the table will be recompiled and presented on some update schedule (~minute).
 
