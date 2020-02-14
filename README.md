@@ -54,10 +54,12 @@ I evaluated the unigram logistic regression model on a test set that contained p
 <img src="readme_materials/pos_roc_curve.png" display="inline" height=400>
 Figure 1. ROC curves, (left) negative vs. neutral tweets, AUC=8.32, (right) positive vs. neutral tweets, AUC=0.797.<br>
 
-
 Based off these curves, I decided to neatly place the thresholds for negative classification at p < 0.33, and for positive classification at p > 0.66. This generated the confusion matrix below. This classifier is strong enough for rough sentiment overviews on high-volume data like streams, but would need to be improved for more granular analysis applications. Particularly, it has trouble distinguishing neutral and positive tweets. This may be solved using a training set with a third neutral class, or a more powerful series model like an RNN.
 
-Precision and recall for the classes is shown below, classified as one-to-rest:
+<img src = "readme_materials/confusion_mat.png" height=400><br>
+Figure 3. Confusion matrix. <br>
+
+Precision and recall for each classes is shown below, classified as one-to-rest:
 
 | Sentiment | Precision | Recall | F1 |
 |-----------|-----------|--------|----|
@@ -69,8 +71,6 @@ Reiterating the conclusion of the ROC curves, the thresholds I've chosen yield s
 
 I suspect the Bag-of-words model does not perform well on tweet data because the language is colloqial, containing sarcasm, idioms, and rapidly-changing subjects. Also, the tweets are very short and do not provide the same opinion reinforcement as multiple sentences in a negative product review might. 
 
-<img src = "readme_materials/confusion_mat.png" height=400><br>
-Figure 3. Confusion matrix
 
 ## Progress
 
