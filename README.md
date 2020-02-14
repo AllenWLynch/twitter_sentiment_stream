@@ -51,11 +51,23 @@ Though the concatenated unigram and trigram bag-of-words featurization with logi
 I evaluated the unigram logistic regression model on a test set that contained positive, negative, and neutral sentiments, which was different from the train set, which only had positive and negative samples. Because my training set was binary, I could not train a 3-class one-vs-rest classifier, so I needed to extend my model to a 3-class setting using threshold tuning. In Figure 1 are ROC curves where I compared the classifiers stength in discriminating between negative and neutral, then positive and neutral tweets. The AUCs were 0.832 and 0.797, respectively, clearly demonstrating the classifier was better at distinguishing negative tweets from neutral than positive.
 
 <img src="readme_materials/neg_roc_curve.png" display="inline" height=400>
-<img src="readme_materials/pos_roc_curve.png" display="inline" height=400><br>
-Figure 1. ROC curves, (left) negative vs. neutral tweets, AUC=8.32, (right) positive vs. neutral tweets, AUC=0.797.
+<img src="readme_materials/pos_roc_curve.png" display="inline" height=400>
+Figure 1. ROC curves, (left) negative vs. neutral tweets, AUC=8.32, (right) positive vs. neutral tweets, AUC=0.797.<br>
 
 
 Based off these curves, I decided to neatly place the thresholds for negative classification at p < 0.33, and for positive classification at p > 0.66. This generated the confusion matrix below. This classifier is strong enough for rough sentiment overviews on high-volume data like streams, but would need to be improved for more granular analysis applications. Particularly, it has trouble distinguishing neutral and positive tweets. This may be solved using a training set with a third neutral class, or a more powerful series model like an RNN.
+
+Precision and recall for the classes is shown below, classified as one-to-rest:
+
+| Sentiment | Precision | Recall | F1 |
+|-----------|-----------|--------|----|
+| Negative   | 0.748 | 0.58 | 0.654 |
+| Neutral  | 0.34 | 0.48 | 0.37 |
+| Positive | 0.605 | 0.615 | 0.606 |
+
+Reiterating the conclusion of the ROC curves, the thresholds I've chosen yield similar recalls for positive and negative tweets, but the classifier has higher sensitivity for negative sentiment. Perhaps the boundaries I've chosen are too stringent for negative tweets, but this could be changed depending on the applications for this app.
+
+I suspect the Bag-of-words model does not perform well on tweet data because the language is colloqial, containing sarcasm, idioms, and rapidly-changing subjects. Also, the tweets are very short and do not provide the same opinion reinforcement as multiple sentences in a negative product review might. 
 
 <img src = "readme_materials/confusion_mat.png" height=400><br>
 Figure 3. Confusion matrix
