@@ -212,7 +212,7 @@ app.layout = html.Div([
                             value = 0,
                         ),
                         dcc.Markdown('''
-                                Attenuating the stream by a factor of **a = 2^x**. This means the app samples tweets from the stream with uniform probability 
+                                Attenuating the stream by a factor of **a = 2^x**, meaning the app samples tweets from the stream with uniform probability 
                                 **p = 1/a**. This may help reduce strain on the input pipeline if volume is too high.
                         ''')
                     ], style = {'float' : 'left','width' : '48%'}),

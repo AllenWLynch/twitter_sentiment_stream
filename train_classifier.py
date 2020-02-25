@@ -126,7 +126,7 @@ if __name__ == "__main__":
         normalizer = ml.feature.Normalizer(p = 1.0, inputCol=counter.getOutputCol(), outputCol=prefix + '_tf_normalized')
         df_normalize = ml.feature.IDF(inputCol=normalizer.getOutputCol(), outputCol=prefix + '_features')
         return ml.Pipeline(stages=[counter, normalizer, df_normalize])
-
+#%%
     def define_combo_model():
         VOCAB_SIZE = 10000
         MINDF = 3
@@ -188,3 +188,47 @@ if __name__ == "__main__":
 
 
 # %%
+
+    def LSA_XGBoost_model():
+
+        VOCAB_SIZE = 20000
+        MINDF = 3
+        TRAINING_ITERS = 150
+
+        tokenizer = pipeline_utils.TweetTokenizer(inputCol='text',outputCol='words')
+        stemmer = pipeline_utils.Stemmer(inputCol=tokenizer.getOutputCol(), outputCol='cleaned_words')
+
+        stopword_remover = ml.feature.StopWordsRemover(inputCol=stemmer.getOutputCol(), outputCol='stopwords_removed', stopWords=list(all_stopwords))
+        unigram_ifidf = TFIDF_pipeline('unigram',stopword_remover.getOutputCol(), 10000)
+        
+        ngrammer = ml.feature.NGram(n=1, inputCol=stemmer.getOutputCol(), outputCol='trigrams')
+        ngram_ifidf = TFIDF_pipeline('trigram', ngrammer.getOutputCol(), 5000)
+
+        assembler = ml.feature.VectorAssembler(inputCols=['unigram_features', 'trigram_features'], outputCol='features')
+
+        pca = ml.feature.PCA(inputCol=assembler.getOutputCol(), k=250, outputCol='lsa_features')
+
+        scaler = ml.feature.StandardScaler(inputCol=pca.getOutputCol(), outputCol='features',withMean=True)
+
+        classifier = ml.classification.GBTClassifier(subsamplingRate=0.5, featureSubsetStrategy='auto')
+
+        pipeline = ml.Pipeline(stages=[
+            tokenizer, stemmer, stopword_remover, unigram_ifidf, ngrammer, ngram_ifidf, assembler, pca, scaler, classifier
+        ])
+
+        return pipeline, pca
+
+    gbt_pipe, tune = LSA_XGBoost_model()
+
+#%%
+    #paramGrid = ml.tuning.ParamGridBuilder().addGrid(tune.k, [200, 250, 300]).build()
+    #evaluates with area under ROC curve
+    #evaluator = ml.evaluation.BinaryClassificationEvaluator()
+    #tvs = ml.tuning.TrainValidationSplit(estimator=gbt_pipe, estimatorParamMaps=paramGrid, evaluator=evaluator, trainRatio=0.9)
+    #bestModel = tvs.fit(train).bestModel
+    bestModel = gbt_pipe.fit(train)
+
+    getROC(bestModel, test)
+
+#%%
+

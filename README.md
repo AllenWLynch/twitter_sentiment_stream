@@ -54,7 +54,7 @@ I evaluated the unigram logistic regression model on a test set that contained p
 <img src="readme_materials/pos_roc_curve.png" display="inline" height=400>
 Figure 1. ROC curves, (left) negative vs. neutral tweets, AUC=8.32, (right) positive vs. neutral tweets, AUC=0.797.<br>
 
-Based off these curves, I decided to neatly place the thresholds for negative classification at p < 0.33, and for positive classification at p > 0.66. This generated the confusion matrix below. This classifier is strong enough for rough sentiment overviews on high-volume data like streams, but would need to be improved for more granular analysis applications. Particularly, it has trouble distinguishing neutral and positive tweets. This may be solved using a training set with a third neutral class, or a more powerful series model like an RNN.
+Based off these curves, I decided to neatly place the thresholds for negative classification at p < 0.33, and for positive classification at p > 0.66. This generated the confusion matrix below. This classifier is strong enough for rough sentiment overviews on high-volume data like streams, but would need to be improved for more granular analysis applications. 
 
 <img src = "readme_materials/confusion_mat.png" height=400><br>
 Figure 3. Confusion matrix. <br>
@@ -69,13 +69,15 @@ Precision and recall for each classes is shown below, classified as one-to-rest:
 
 Reiterating the conclusion of the ROC curves, the thresholds I've chosen yield similar recalls for positive and negative tweets, but the classifier has higher sensitivity for negative sentiment. Perhaps the boundaries I've chosen are too stringent for negative tweets, but this could be changed depending on the applications for this app.
 
-I suspect the Bag-of-words model does not perform well on tweet data because the language is colloqial, containing sarcasm, idioms, and rapidly-changing subjects. Also, the tweets are very short and do not provide the same opinion reinforcement as multiple sentences in a negative product review might. 
+I suspect the Bag-of-words model does not perform well on tweet data because the language is colloqial, containing sarcasm, idioms, and rapidly-changing subjects. Also, the tweets are very short and do not provide the same opinion reinforcement as multiple sentences, and by extension, more words to bag, that a typical product review might. These factors combine to make the order of words an important feature in classifying the sentiment of a tweet, which suggests I should use an RNN. 
+
+While an RNN would likely be more accurate, I stand by my model choice because logistic regression inference time is much faster, which is necessary to keep up with the stream. By virtue of processing a higher volume of tweets in the same timeframe, the logistic regression model can accurately assess population sentiment even if less accurate in classifying individual tweets. 
 
 
-## Progress
+## The App
 
-* completed specifying pipeline and training model
-* completed layout of Dash app, starting testing callbacks
-* To do:
-  * Integrate prediction pipeline with dashboard through SQL mediary
-  * Deploy on Twitter stream
+The App consists of four components:
+1. Python wrapper for twitter stream object
+2. Spark pipeline. Interfaces with python wrapper through local TCP socket.
+3. Saves result of pipeline to Apache Arrow intermediary. Arrow dataframe is called by dashboard on updates.
+4. Dash dashboard presents the collected data to the user with interactive plots.
