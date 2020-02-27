@@ -1,18 +1,13 @@
 #%%
-import socket
+import socket as Socket
 import sys
 import requests
 import requests_oauthlib
 import json
 import time
 import api_keys
-#%%
-
-#%%
-AUTHORIZATION = requests_oauthlib.OAuth1(api_keys.API_KEY, api_keys.API_SECRET_KEY, api_keys.ACCESS_TOKEN, api_keys.ACCESS_SECRET_TOKEN)
-
-API_ENDPOINT = 'https://stream.twitter.com/1.1/statuses/sample.json'
-QUERY_STR = '?language=en&locations={}'
+from multiprocessing import Process, Queue
+import random
 
 #%%
 class StreamError(Exception):
@@ -69,15 +64,16 @@ class LinearBackoff(StreamBackoff):
 	def allow_reconnection(self):
 		return time.time() - self.time >= self.increment * self.slope
 
-HTTP_ERROR_CODES = [401, 403, 404, 406, 413, 416, 503]
-BACKOFFS = [
-	LinearBackoff(HTTP_ERROR_CODES, 16, True, 0.25),
-	ExponentialBackoff(HTTP_ERROR_CODES, 320, False, 5, 2),
-	ExponentialBackoff([420],1000, False, 60, 2),
-]
-
 #%%
-def manage_connection(endpoint, backoffs, output_fn = lambda x : x, pause_time = 1.0):
+#implement backoff
+def manage_connection(endpoint, output_queue, authorization, pause_time = 1.0):
+
+	HTTP_ERROR_CODES = [401, 403, 404, 406, 413, 416, 503]
+	backoffs = [
+		LinearBackoff(HTTP_ERROR_CODES, 16, True, 0.25),
+		ExponentialBackoff(HTTP_ERROR_CODES, 320, False, 5, 2),
+		ExponentialBackoff([420],1000, False, 60, 2),
+	]
 
 	startime = time.time()
 	stream_time = time.time()
@@ -87,11 +83,9 @@ def manage_connection(endpoint, backoffs, output_fn = lambda x : x, pause_time =
 
 	while True:
 
-		allow_reconnection = [backoff.allow_reconnection() for backoff in backoffs]
-		print(allow_reconnection)
-		if all(allow_reconnection):
+		if all([backoff.allow_reconnection() for backoff in backoffs]):
 
-			response = requests.get(endpoint, auth = AUTHORIZATION, stream = True)
+			response = requests.get(endpoint, auth = authorization, stream = True)
 
 			if response.status_code == 200:
 
@@ -99,7 +93,8 @@ def manage_connection(endpoint, backoffs, output_fn = lambda x : x, pause_time =
 				stream_time = time.time()
 
 				for tweet in stream(response):
-					output_fn(tweet)
+					if not output_queue.full():
+						output_queue.put(tweet)
 
 				for backoff in backoffs:
 					backoff.reset()
@@ -115,6 +110,7 @@ def manage_connection(endpoint, backoffs, output_fn = lambda x : x, pause_time =
 			print('waiting')
 			time.sleep(pause_time)
 
+#%%
 def preprocess_tweet_json(tweet_str):
 	try:
 		tweet_json = json.loads(tweet_str)
@@ -139,37 +135,51 @@ def preprocess_tweet_json(tweet_str):
 				lon, lat = bounding_box['coordinates'][0][0][:]
 			structured_json['lon'] = lon
 			structured_json['lat'] = lat
-		structured_txt = json.dumps(structured_json)
-		return structured_txt
+		return json.dumps(structured_json)
 	except Exception as err:
 		print("Error: " + str(repr(err)))
 
-manage_connection('https://stream.twitter.com/1.1/statuses/sample.json?language=en', BACKOFFS, output_fn=preprocess_tweet_json)
+#manage_connection('https://stream.twitter.com/1.1/statuses/sample.json?language=en', BACKOFFS, output_fn=preprocess_tweet_json)
 
 #%%
 date_format = "Mon May 06 20:01:29 +0000 2019"
 #%%
 #link to spark through tcp port
-class SparkLink():
 
-	def __init__(self, tcp_ip, tcp_port, attenuation):
-		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.socket.bind((tcp_ip, tcp_port))
-		self.socket.listen(1)
-		self.connection = self.socket.accept()
-		print("TCP connection configured for port {}".format(tcp_ip))
-		self.attenuation = attenuation
+def send_to_spark(tcp_ip, tcp_port, attenuation, queue):
+	
+	socket = Socket.socket(Socket.AF_INET, Socket.SOCK_STREAM)
+	socket.bind((tcp_ip, tcp_port))
+	socket.listen(1)
+	connection, addr = socket.accept()
+	print("Created TCP connection...")
+	
+	tweets_collected = 0
 
-	def __call__(self, tweet):
-		pass
-
-#creates sparklink and starts reading from stream
-def start_stream_daemon(endpoint, tcp_ip, tcp_port, attenuation):
-
-	manage_connection(endpoint, BACKOFFS, SparkLink(tcp_ip, tcp_port), attenuation)
-
+	while True:
+		if not queue.empty():
+			structured_tweet_str = preprocess_tweet_json(queue.get())
+			connection.send(structured_tweet_str + '\n')
+			tweets_collected += 1
+			print('\rTweets streamed: {}'.format(str(tweets_collected)))
 
 if __name__ == "__main__":
 
-	start_stream_daemon(, 'localhost',9009,0)
+	#%%
+	AUTHORIZATION = requests_oauthlib.OAuth1(api_keys.API_KEY, api_keys.API_SECRET_KEY, api_keys.ACCESS_TOKEN, api_keys.ACCESS_SECRET_TOKEN)
+
+	API_ENDPOINT = 'https://stream.twitter.com/1.1/statuses/sample.json?language=en'
+
+	datafeed_queue = Queue(5000)
+	#endpoint, output_queue, authorization
+	stream_process = Process(target = manage_connection, args  = (API_ENDPOINT, datafeed_queue, AUTHORIZATION))
+	stream_process.daemon = True
+
+	tcp_process = Process(target = send_to_spark, args= ('localhost', 9009, 0, datafeed_queue))
+	tcp_process.daemon = True
+
+	tcp_process.start()
+	stream_process.start()
+
+	stream_process.join()
 
