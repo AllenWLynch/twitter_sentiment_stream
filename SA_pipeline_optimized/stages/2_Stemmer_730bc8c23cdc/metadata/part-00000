@@ -1,1 +1,0 @@
-{"class":"pipeline_utils.Stemmer","timestamp":1580525842815,"sparkVersion":"3.0.0-preview2","uid":"Stemmer_730bc8c23cdc","paramMap":{"inputCol":"filtered","outputCol":"cleaned_words"},"defaultParamMap":{"outputCol":"Stemmer_730bc8c23cdc__output"}}

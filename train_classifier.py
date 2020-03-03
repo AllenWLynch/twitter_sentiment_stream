@@ -12,7 +12,10 @@ from pyspark.sql import functions
 from pyspark import ml
 from nltk.tokenize import TweetTokenizer
 
-spark = SparkSession.builder.appName("Train SVM").getOrCreate()
+spark = SparkSession.builder.appName("Train SVM")\
+    .config("spark.executor.memory","10g")\
+    .config("spark.driver.memory","10g")\
+    .getOrCreate()
 
 #%%
 import importlib
@@ -29,10 +32,10 @@ if __name__ == "__main__":
     tweets = tweets.withColumn('label', functions.when(tweets['label']==0, 0).otherwise(1))
     tweets.createOrReplaceTempView('tweets')
 #%%
-    TRAIN_SIZE = 60000
-    TEST_SIZE = 5000
-    train = tweets.sample(False, TRAIN_SIZE/tweets.count())
-    test = tweets.sample(False, TEST_SIZE/tweets.count())
+    #TRAIN_SIZE = 60000
+    #TEST_SIZE = 5000
+    train = tweets#.sample(False, TRAIN_SIZE/tweets.count())
+    #test = tweets.sample(False, TEST_SIZE/tweets.count())
 
 #%%
     def getROC(model, test_set):
@@ -49,7 +52,7 @@ if __name__ == "__main__":
         paramGrid = ml.tuning.ParamGridBuilder().addGrid(regressor.regParam, [0.1,0.01,0.001]).addGrid(regressor.elasticNetParam,[0.0, 0.5, 1.0]).build()
         #evaluates with area under ROC curve
         evaluator = ml.evaluation.BinaryClassificationEvaluator()
-        tvs = ml.tuning.TrainValidationSplit(estimator=model, estimatorParamMaps=paramGrid, evaluator=evaluator, trainRatio=0.9)
+        tvs = ml.tuning.TrainValidationSplit(estimator=model, estimatorParamMaps=paramGrid, evaluator=evaluator, trainRatio=0.95)
         bestModel = tvs.fit(training_set).bestModel
 
         return bestModel
@@ -68,14 +71,23 @@ if __name__ == "__main__":
         counter = ml.feature.CountVectorizer(inputCol=stemmer.getOutputCol(), outputCol='counts',vocabSize=VOCAB_SIZE, minDF=MINDF)
         normalizer = ml.feature.Normalizer(p = 1.0, inputCol=counter.getOutputCol(), outputCol='tf_normalized')
         df_normalize = ml.feature.IDF(inputCol=normalizer.getOutputCol(), outputCol='features')
-        #regresser = ml.classification.LogisticRegression(maxIter= TRAINING_ITERS, regParam=0.01,elasticNetParam=0.5, 
-        #    featuresCol='features', labelCol= 'label')
-        regresser = ml.classification.MultilayerPerceptronClassifier(maxIter=TRAINING_ITERS, layers = [3,2,1], blockSize=64,seed=1234)
+        regresser = ml.classification.LogisticRegression(maxIter= TRAINING_ITERS, regParam=0.01,elasticNetParam=0.5, 
+            featuresCol='features', labelCol= 'label')
+        #regresser = ml.classification.MultilayerPerceptronClassifier(maxIter=TRAINING_ITERS, layers = [3,2,1], blockSize=64,seed=1234)
         pipeline = ml.Pipeline(stages=[tokenizer, stopword_remover, stemmer, counter, normalizer, df_normalize, regresser])
 
         return pipeline, regresser
 
     unigram_model, regresser = define_unigram_model()
+    #%%
+    #with best params chosen, let's train the big boi
+
+    big_model = unigram_model.fit(train)
+
+    big_model.save('big_unigram_model')
+
+    assert(False)
+
 #%%
 
     best_unigram_model = search_hyperparams(unigram_model, regresser, train)

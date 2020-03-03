@@ -36,7 +36,6 @@ map_figure.update_layout(
 )
 
 #_____________Tweet Activity Meters__________
-x = np.arange(10)
 
 activity_meter = make_subplots(rows=2,cols=1,shared_xaxes=True,vertical_spacing=0.05)
 

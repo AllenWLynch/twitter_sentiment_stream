@@ -111,46 +111,49 @@ def manage_connection(endpoint, output_queue, authorization, pause_time = 1.0):
 			time.sleep(pause_time)
 
 #%%
-def preprocess_tweet_json(tweet_str):
-	try:
-		tweet_json = json.loads(tweet_str)
-		structured_json = dict(created_at = tweet_json['created_at'])
-		if 'extended_tweet' in tweet_json:
-			extended_json = tweet_json['extended_tweet']
-			structured_json['text'] = extended_json['full_text']
-			structured_json['hashtags'] = [hashtag['text'] for hashtag in extended_json['entities']['hashtags']]
-		else:
-			structured_json['text'] = tweet_json['text']
-			structured_json['hashtags'] = [hashtag['text'] for hashtag in tweet_json['entities']['hashtags']]
-		if tweet_json['place'] is None:
-			structured_json['place_name'] = None
-			structured_json['lon'] = None
-			structured_json['lat'] = None
-		else:
-			structured_json['place_name'] = tweet_json['place']['full_name'] + ', ' + tweet_json['place']['country']
-			bounding_box = tweet_json['place']['bounding_box']
-			if bounding_box['type'] == 'Polygon':
-				lon, lat = [sum(coors)/len(coors) for coors in list(zip(*bounding_box['coordinates'][0]))]
-			else:
-				lon, lat = bounding_box['coordinates'][0][0][:]
-			structured_json['lon'] = lon
-			structured_json['lat'] = lat
-		return json.dumps(structured_json)
-	except Exception as err:
-		print("Error: " + str(repr(err)))
-
 #manage_connection('https://stream.twitter.com/1.1/statuses/sample.json?language=en', BACKOFFS, output_fn=preprocess_tweet_json)
 
 #%%
 date_format = "Mon May 06 20:01:29 +0000 2019"
 #%%
 #link to spark through tcp port
+def preprocess_tweet_json(tweet_str):
+    try:
+        tweet_json = json.loads(tweet_str)
+        structured_json = dict(created_at = tweet_json["created_at"])
+        if 'extended_tweet' in tweet_json:
+            extended_json = tweet_json['extended_tweet']
+            structured_json['text'] = extended_json['full_text']
+            structured_json['hashtags'] = [hashtag['text'] for hashtag in extended_json['entities']['hashtags']]
+        else:
+            structured_json['text'] = tweet_json['text']
+            structured_json['hashtags'] = [hashtag['text'] for hashtag in tweet_json['entities']['hashtags']]
+
+        if tweet_json['place'] is None:
+            structured_json['place_name'] = None
+            structured_json['lon'] = None
+            structured_json['lat'] = None
+        else:
+            structured_json['place_name'] = tweet_json['place']['full_name'] + ', ' + tweet_json['place']['country']
+            bounding_box = tweet_json['place']['bounding_box']
+            if bounding_box['type'] == 'Polygon':
+                lon, lat = [sum(coors)/len(coors) for coors in list(zip(*bounding_box['coordinates'][0]))]
+            else:
+                lon, lat = bounding_box['coordinates'][0][0][:]
+            structured_json['lon'] = lon
+            structured_json['lat'] = lat
+
+        return json.dumps(structured_json)
+
+    except Exception as err:
+        raise(err)
 
 def send_to_spark(tcp_ip, tcp_port, attenuation, queue):
 	
 	socket = Socket.socket(Socket.AF_INET, Socket.SOCK_STREAM)
 	socket.bind((tcp_ip, tcp_port))
-	socket.listen(1)
+	socket.listen(0)
+	print('Created connection. Waiting for client')
 	connection, addr = socket.accept()
 	print("Created TCP connection...")
 	
@@ -158,10 +161,13 @@ def send_to_spark(tcp_ip, tcp_port, attenuation, queue):
 
 	while True:
 		if not queue.empty():
-			structured_tweet_str = preprocess_tweet_json(queue.get())
-			connection.send(structured_tweet_str + '\n')
+			send = preprocess_tweet_json(queue.get())
+			connection.send((send+'\n').encode())
+			#send = queue.get()
+			#connection.send(send + '\n'.encode())
 			tweets_collected += 1
-			print('\rTweets streamed: {}'.format(str(tweets_collected)))
+			print('\rTweets streamed: {}'.format(str(tweets_collected)), end = '')
+			
 
 if __name__ == "__main__":
 
@@ -170,16 +176,17 @@ if __name__ == "__main__":
 
 	API_ENDPOINT = 'https://stream.twitter.com/1.1/statuses/sample.json?language=en'
 
-	datafeed_queue = Queue(5000)
+	datafeed_queue = Queue(100)
 	#endpoint, output_queue, authorization
 	stream_process = Process(target = manage_connection, args  = (API_ENDPOINT, datafeed_queue, AUTHORIZATION))
 	stream_process.daemon = True
 
 	tcp_process = Process(target = send_to_spark, args= ('localhost', 9009, 0, datafeed_queue))
-	tcp_process.daemon = True
+	#tcp_process.daemon = True
 
 	tcp_process.start()
 	stream_process.start()
 
+	tcp_process.join()
 	stream_process.join()
-
+	#send_to_spark('localhost', 9009, 0, datafeed_queue)
