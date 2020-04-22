@@ -1,4 +1,4 @@
-# Streaming Sentiment from Twitter
+https://github.com/AllenWLynch/twitter_sentiment_stream.git# Streaming Sentiment from Twitter
 
 ## Objective:
 Incorportate data retrieval, processing, prediction, and representation in a "full-stack" analytics project using Spark streaming and ML with visualization in a Plotly dashboard.
@@ -76,8 +76,10 @@ While an RNN would likely be more accurate, I stand by my model choice because l
 
 ## The App
 
-The App consists of four components:
-1. Python wrapper for twitter stream object
-2. Spark pipeline. Interfaces with python wrapper through local TCP socket.
-3. Saves result of pipeline to Apache Arrow intermediary. Arrow dataframe is called by dashboard on updates.
-4. Dash dashboard presents the collected data to the user with interactive plots.
+The App consists of three components:
+1. **Python wrapper for twitter stream object**:
+   This wrapper spins up two parallel processes. One handles reading from the endpoint and managing timed backoffs due to stream errors. The other feeds tweets from a queue into a TCP socket.
+2. **Spark pipeline**:
+   Interfaces with the wrapper through a local TCP socket. Recieves, processes, tokenizes, and classifies Tweets, then saves batches them to disk in a session directory.
+3. ***Dashboard**:
+   Data is loaded from session using pyarrow, then procesed and prsented for user on dashboard.
