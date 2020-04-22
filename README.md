@@ -1,4 +1,5 @@
-https://github.com/AllenWLynch/twitter_sentiment_stream.git# Streaming Sentiment from Twitter
+# Steaming Sentiment from Twitter
+<hr>
 
 ## Objective:
 Incorportate data retrieval, processing, prediction, and representation in a "full-stack" analytics project using Spark streaming and ML with visualization in a Plotly dashboard.
